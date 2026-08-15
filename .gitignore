@@ -1,0 +1,16 @@
+# Compiled Object files and Shared Libraries
+*.o
+*.so
+*.a
+*.out
+
+# Generated test snippets / test binaries
+tests/snippets/
+*.log
+*.diff
+
+# Temporary & Editor files
+.vscode/
+.DS_Store
+*.swp
+*~
