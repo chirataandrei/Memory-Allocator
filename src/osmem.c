@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <stdlib.h>
-
 #include "osmem.h"
 #include "block_meta.h"
 
