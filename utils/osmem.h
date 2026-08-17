@@ -3,10 +3,10 @@
 #pragma once
 
 #include <errno.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <string.h>
 #include <sys/mman.h>
 #include "printf.h"
 
