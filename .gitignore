@@ -6,6 +6,8 @@
 
 # Generated test snippets / test binaries
 tests/snippets/
+tests/local/test_local
+tests/local/*.dSYM/
 *.log
 *.diff
 

@@ -1,9 +1,25 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <stdlib.h>
+
 #include "osmem.h"
 #include "block_meta.h"
 
 struct block_meta *head = NULL;
+
+void split_block(struct block_meta *block, size_t size, size_t dif)
+{
+	struct block_meta *new = (struct block_meta *) ((char*) (block + 1) + size); 
+	new->next = block->next;
+	new->prev = block;
+	new->size = dif - sizeof(struct block_meta);
+	new->status = STATUS_FREE;
+	block->next = new;
+	block->size = size;
+	if (new->next != NULL) {
+		new->next->prev = new;
+	}
+}
 
 static void *alloc_heap(size_t size)
 {
@@ -101,18 +117,7 @@ static void *alloc_heap(size_t size)
         size_t left_size = best_fit->size - size;
         if (left_size >= sizeof(struct block_meta) + 8) {
                 
-            struct block_meta *new = (struct block_meta *)((char *)(best_fit + 1) + size);
-            best_fit->size = size;
-            new->size = left_size - sizeof(struct block_meta);
-            new->next = best_fit->next;
-                
-            if (best_fit->next != NULL) {
-                best_fit->next->prev = new;
-            }
-                
-            best_fit->next = new;
-        	new->prev = best_fit;
-            new->status = STATUS_FREE;
+            split_block(best_fit, size, left_size);
         }
 	}
 
@@ -219,23 +224,66 @@ void *os_realloc(void *ptr, size_t size)
 
 	if (curr->status == STATUS_MAPPED) {
 		void *new_ptr = os_malloc(size);
-		memcpy();
+		size_t min_size = (curr->size < size) ? curr->size : size;
+		memcpy(new_ptr, ptr, min_size);
+		os_free(ptr);
+		return new_ptr;
 	} else {
 		
 		if (size <= curr->size) {
-			// split block;
+			
+			// split block
 			size_t dif = curr->size - size;
 			if (dif >= sizeof(struct block_meta) + 8) {
-				struct block_meta *new = (struct block_meta *) ((char *) (curr + 1) + size);
-				new->prev = curr;
-				new->size = dif;
-				new->next = curr->next;
-				curr->next = new;
-				curr->size = size;
-				return ptr;
+				split_block(curr, size, dif);
 			}
+			return ptr;
 		} else {
 			
+			// coalesce blocks
+			size_t curr_size = curr->size;
+			struct block_meta *block = curr;
+			curr = curr->next;
+			while (curr != NULL && curr->status == STATUS_FREE) {
+				curr_size += curr->size + sizeof(struct block_meta);
+				curr = curr->next;
+			}
+
+			block->next = curr;
+			block->size = curr_size;
+			if (curr != NULL) {
+				curr->prev = block;
+			}
+
+			// verify if the size is enough
+			if (block->size >= size) {
+				
+				// split block
+				size_t dif = block->size - size;
+				if (dif >= sizeof(struct block_meta) + 8) {
+					split_block(block, size, dif);
+				}
+
+				return ptr;
+			} else if (curr == NULL) {
+				
+				// end of the heap
+				size_t dif = size - block->size;
+				void *new_ptr = sbrk(dif);
+				if (new_ptr == (void*) -1) {
+					return NULL;
+				}
+				block->size = size;
+				return ptr;
+			} else {
+				
+				// alloc more space
+				void *new_ptr = os_malloc(size);
+				DIE(new_ptr == NULL, "malloc failed");
+				memcpy(new_ptr, ptr, block->size);
+				os_free(ptr);
+				return new_ptr;
+			}
 		}
 	}
 }
