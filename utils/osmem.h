@@ -6,9 +6,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <sys/mman.h>
 #include "printf.h"
 
 #define MMAP_THRESHOLD	(128 * 1024)
+#define ALIGN_SZ 8
+#define ALIGN(size) (((size) + (ALIGN_SZ - 1)) & ~(ALIGN_SZ - 1))
 
 void *os_malloc(size_t size);
 void os_free(void *ptr);
